@@ -1,0 +1,38 @@
+name: Construire l'APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Creer le projet Android
+        run: |
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          mkdir -p www assets
+          echo '<!doctype html><meta charset="utf-8"><title>Gestion LJC</title><p>Chargement...</p>' > www/index.html
+          echo '{"appId":"io.github.henockbanda.gestion","appName":"Gestion LJC","webDir":"www","server":{"url":"https://henock-banda.github.io/gestion/","androidScheme":"https"}}' > capacitor.config.json
+          npx cap add android
+          sed -i 's#</manifest>#<uses-permission android:name="android.permission.RECORD_AUDIO"/><uses-permission android:name="android.permission.CAMERA"/><uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/></manifest>#' android/app/src/main/AndroidManifest.xml
+      - name: Icone du centre
+        continue-on-error: true
+        run: |
+          curl -L -o /tmp/icon.png https://henock-banda.github.io/gestion/icon-512.png
+          convert /tmp/icon.png -resize 1024x1024 assets/icon-only.png
+          npm install --save-dev @capacitor/assets
+          npx capacitor-assets generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#ffffff'
+      - name: Construire l'APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gestion-LJC-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
